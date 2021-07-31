@@ -107,9 +107,20 @@ labels = lbann.Identity(input_)
 
 
 # Argumentation
-pos_weights = lbann.Weights(initializer=lbann.ValueInitializer(values='0.5 0.5 0.5'),name='crop_weights',optimizer=lbann.NoOptimizer())
-pos = lbann.WeightsLayer(dims='3', weights=pos_weights, name='pos')
-images = lbann.Crop(images,pos, dims='3 20 20')
+mag_rot = '0'
+rand_rot = lbann.Uniform(min=-1, max=1, neuron_dims='1', training_only=True)
+rot_weights = lbann.Weights(initializer=lbann.ValueInitializer(values=mag_rot), name='rot_weights', optimizer=lbann.NoOptimizer())
+rot = lbann.WeightsLayer(dims='1', weights=rot_weights, name='rot', device='CPU')
+rot = lbann.Multiply(rot, rand_rot, device='CPU')
+
+mag_shear = '0'
+rand_shear = lbann.Uniform(min=-1, max=1, neuron_dims='1', training_only=True)
+shear_weights = lbann.Weights(initializer=lbann.ValueInitializer(values=mag_shear),name='shear_weights',optimizer=lbann.NoOptimizer())
+shear = lbann.WeightsLayer(dims='1', weights=shear_weights, name='shear')
+shear = lbann.Multiply(shear, rand_shear, device='CPU')
+
+images = lbann.Rotation(images, rot, shear, device='CPU')
+
 images = lbann.BilinearResize(images, height=32, width=32,name='resize')
 
 
@@ -138,16 +149,18 @@ obj = lbann.ObjectiveFunction([cross_entropy, l2_reg])
 metrics = [lbann.Metric(top1, name='accuracy', unit='%'),
            lbann.Metric(top5, name='top-5', unit='%')]
 callbacks = [lbann.CallbackPrint(),
-             lbann.CallbackTimer(),
-             lbann.CallbackDropFixedLearningRate(
-                 drop_epoch=[30, 60, 80], amt=0.1)]
+             lbann.CallbackTimer()]#,
+             #lbann.CallbackDropFixedLearningRate(
+             #    drop_epoch=[30, 60, 80], amt=0.1)]
 
-callbacks.append(lbann.CallbackPerturbWeights(output_name='crop_weights',batch_interval=400))
+callbacks.append(lbann.CallbackPerturbWeights(output_name='rot_weights',batch_interval=400,lower=-45,upper=45,scale=45))
+callbacks.append(lbann.CallbackPerturbWeights(output_name='shear_weights',batch_interval=400,lower=-0.2,upper=0.2,scale=0.5))
 
 if args.warmup:
     callbacks.append(
         lbann.CallbackLinearGrowthLearningRate(
             target=0.1 * args.mini_batch_size / 256, num_epochs=5))
+
 model = lbann.Model(args.num_epochs,
                     layers=layers,
                     objective_function=obj,
@@ -180,4 +193,4 @@ trainer = lbann.Trainer(mini_batch_size=128,
 lbann_args="--procs_per_trainer=2"
 nodes_args=8
 kwargs = lbann.contrib.args.get_scheduler_kwargs(args)
-lbann.contrib.launcher.run(trainer, model, data_reader, opt, nodes=nodes_args, lbann_args = lbann_args,job_name="resnet_LTBF_w",**kwargs)
+lbann.contrib.launcher.run(trainer, model, data_reader, opt, nodes=nodes_args, lbann_args = lbann_args,job_name="resnet_LTBF_w40_s",**kwargs)
