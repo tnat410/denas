@@ -145,8 +145,8 @@ def run(gParameters,run_args,exp_dir=None):
 
   # Translation
   mag_trans = str(gParameters['translation']) + ' ' + str(gParameters['translation'])
-  rot_weights = lbann.Weights(initializer=lbann.ValueInitializer(values=mag_trans), name='trans_weights', optimizer=lbann.NoOptimizer())
-  rot = lbann.WeightsLayer(dims='2', weights=trans_weights, name='trans', device='CPU')
+  trans_weights = lbann.Weights(initializer=lbann.ValueInitializer(values=mag_trans), name='trans_weights', optimizer=lbann.NoOptimizer())
+  trans = lbann.WeightsLayer(dims='2', weights=trans_weights, name='trans', device='CPU')
 
   images = lbann.Composite_Image_Translation(images, rot, shear, trans, device='CPU')
 
